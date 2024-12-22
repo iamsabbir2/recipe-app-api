@@ -1,4 +1,5 @@
-name: Test and Lint
+---
+name: Checks
 
 on: [push, pull_request]
 
