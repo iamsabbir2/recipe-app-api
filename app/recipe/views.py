@@ -2,12 +2,14 @@
 Views for the recipe APIs.
 """
 
-from rest_framework import viewsets
+from rest_framework import viewsets, mixins
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
 
-from core.models import Recipe
+from core.models import Recipe, Tag
 from recipe import serializers
+
+from rest_framework.exceptions import PermissionDenied
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
@@ -18,9 +20,10 @@ class RecipeViewSet(viewsets.ModelViewSet):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
-    def querySet(self):
+    def get_queryset(self):
         """Retrieve recipes for authenticated user."""
-        return self.queryset.filter(user=self.request.user).order_by("-id")
+        return self.queryset.filter(user=self.request.user)
+        # return self.queryset.filter(user=self.request.user).order_by("-id")
 
     def get_serializer_class(self):
         """Return the serializer class for request."""
@@ -32,3 +35,27 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """Create a new recipe."""
         serializer.save(user=self.request.user)
+
+    def perform_destroy(self, instance):
+        """Delete a recipe."""
+        if instance.user != self.request.user:
+            raise PermissionDenied("Don't have permission.")
+        instance.delete()
+
+
+class TagViewSet(
+    mixins.DestroyModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.ListModelMixin,
+    viewsets.GenericViewSet,
+):
+    """Manage Tags In the Database."""
+
+    serializer_class = serializers.TagSerializer
+    queryset = Tag.objects.all()
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """Filter request to authenticated user."""
+        return self.queryset.filter(user=self.request.user).order_by("-name")
